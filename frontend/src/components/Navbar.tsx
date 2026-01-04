@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Menu, X, ExternalLink } from "lucide-react";
 import { useState } from "react";
@@ -21,9 +22,7 @@ export function Navbar() {
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-yellow-300 flex items-center justify-center">
-              <span className="text-black font-bold">M</span>
-            </div>
+            <Image src="/logo.png" alt="Move Maximizer" width={32} height={32} className="rounded-lg" />
             <span className="font-semibold">Move<span className="text-primary">Maximizer</span></span>
           </Link>
 

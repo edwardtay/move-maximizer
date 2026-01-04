@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Move Maximizer - Intelligent Yield Optimizer",
   description: "Maximize your DeFi yields on Movement Network with intelligent auto-rebalancing strategies",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.png",
   },
 };
 
