@@ -1,0 +1,15 @@
+[package]
+name = "MoveMaximizer"
+version = "1.0.0"
+authors = ["MoveMaximizer Team"]
+
+[addresses]
+moveflow = "_"
+movemax = "_"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "aptos-release-v1.18" }
+AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib/", rev = "aptos-release-v1.18" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "aptos-release-v1.18" }
+
+[dev-dependencies]

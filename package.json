@@ -1,0 +1,28 @@
+{
+  "name": "moveflow",
+  "version": "1.0.0",
+  "description": "AI-Powered Yield Aggregator for Movement Network",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "bot"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:bot": "npm run dev --workspace=bot",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:bot": "npm run build --workspace=bot",
+    "install:all": "npm install && cd frontend && npm install && cd ../bot && npm install"
+  },
+  "keywords": [
+    "defi",
+    "movement",
+    "move",
+    "yield",
+    "aggregator",
+    "telegram",
+    "ai"
+  ],
+  "author": "MoveFlow Team",
+  "license": "MIT"
+}
