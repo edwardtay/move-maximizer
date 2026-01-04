@@ -11,9 +11,9 @@ const config = new AptosConfig({
 export const aptosClient = new Aptos(config);
 
 export const MODULES = {
-  vault: `${CONTRACT_ADDRESS}::vault`,
-  router: `${CONTRACT_ADDRESS}::strategy_router`,
-  rewards: `${CONTRACT_ADDRESS}::rewards`,
+  vault: `${CONTRACT_ADDRESS}::vault` as const,
+  router: `${CONTRACT_ADDRESS}::strategy_router` as const,
+  rewards: `${CONTRACT_ADDRESS}::rewards` as const,
 };
 
 // Protocol info from on-chain router
@@ -308,4 +308,29 @@ export async function getPendingRewards(
     console.error("Error getting pending rewards:", e);
     return 0;
   }
+}
+
+// Get current APY from router (for useVault hook)
+export async function getCurrentAPY(vaultAddress: string): Promise<number> {
+  try {
+    const routerInfo = await getRouterInfo(vaultAddress);
+    if (!routerInfo || routerInfo.protocolCount === 0) return 0;
+    
+    let totalAPY = 0;
+    for (let i = 0; i < routerInfo.protocolCount; i++) {
+      const protocol = await getProtocolInfo(vaultAddress, i);
+      if (protocol && protocol.isActive) {
+        totalAPY += protocol.currentAPY;
+      }
+    }
+    return totalAPY / routerInfo.protocolCount;
+  } catch (e) {
+    console.error("Error getting current APY:", e);
+    return 0;
+  }
+}
+
+// Parse amount string to number (for useVault hook)
+export function parseAmount(amount: string): number {
+  return parseFloat(amount) || 0;
 }
