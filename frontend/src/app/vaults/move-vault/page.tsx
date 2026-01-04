@@ -10,6 +10,8 @@ import {
   getBalance, 
   getUserPosition, 
   getShareValue,
+  getRouterInfo,
+  getProtocolInfo,
   buildDepositPayload, 
   buildWithdrawPayload,
   buildHarvestPayload,
@@ -17,9 +19,10 @@ import {
   CONTRACT_ADDRESS,
   VaultInfo,
   UserPosition,
+  ProtocolInfo,
   calculateRealAPY,
 } from "@/lib/movement";
-import { VAULT_STRATEGIES, calculateWeightedAPY, calculateRiskScore, PROTOCOLS, formatAllocation } from "@/lib/protocols";
+import { VAULT_STRATEGIES, calculateWeightedAPY, calculateRiskScore, PROTOCOLS, formatAllocation, Strategy, updateStrategiesWithOnChainData } from "@/lib/protocols";
 
 export default function MoveVaultPage() {
   const { connected, address } = useWalletContext();
@@ -35,17 +38,34 @@ export default function MoveVaultPage() {
   const [userBalance, setUserBalance] = useState<number>(0);
   const [userPosition, setUserPosition] = useState<UserPosition | null>(null);
   const [userShareValue, setUserShareValue] = useState<number>(0);
+  const [strategies, setStrategies] = useState<Strategy[]>(VAULT_STRATEGIES);
+  const [onChainProtocols, setOnChainProtocols] = useState<ProtocolInfo[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const targetAPY = calculateWeightedAPY();
-  const riskScore = calculateRiskScore();
+  const targetAPY = calculateWeightedAPY(strategies);
+  const riskScore = calculateRiskScore(strategies);
 
   const fetchData = useCallback(async () => {
     setDataLoading(true);
     try {
       const info = await getVaultInfo(CONTRACT_ADDRESS);
       setVaultInfo(info);
+      
+      // Fetch router info and protocols
+      const routerInfo = await getRouterInfo(CONTRACT_ADDRESS);
+      if (routerInfo && routerInfo.protocolCount > 0) {
+        const protocols: ProtocolInfo[] = [];
+        for (let i = 0; i < routerInfo.protocolCount; i++) {
+          const protocol = await getProtocolInfo(CONTRACT_ADDRESS, i);
+          if (protocol) protocols.push(protocol);
+        }
+        setOnChainProtocols(protocols);
+        
+        // Update strategies with on-chain APY data
+        const updatedStrategies = updateStrategiesWithOnChainData(VAULT_STRATEGIES, protocols);
+        setStrategies(updatedStrategies);
+      }
       
       if (address) {
         const [balance, position] = await Promise.all([
@@ -397,10 +417,17 @@ export default function MoveVaultPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="glass-card p-4 mt-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-sm">Active Strategies</h3>
-            <span className="text-xs text-gray-500">Allocation rebalanced based on APY differentials</span>
+            <div className="flex items-center gap-2">
+              {onChainProtocols.length > 0 && (
+                <span className="text-xs text-green-500 flex items-center gap-1">
+                  <Activity className="w-3 h-3" /> Live APY
+                </span>
+              )}
+              <span className="text-xs text-gray-500">Rebalanced on APY differential</span>
+            </div>
           </div>
           <div className="grid md:grid-cols-3 gap-3">
-            {VAULT_STRATEGIES.filter(s => s.active).map((strategy, i) => {
+            {strategies.filter(s => s.active).map((strategy, i) => {
               const protocol = PROTOCOLS[strategy.protocolId];
               return (
                 <motion.div 

@@ -4,24 +4,43 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ArrowRight, Zap, RefreshCw, Layers, ExternalLink, TrendingUp, Shield, Activity } from "lucide-react";
 import Link from "next/link";
-import { PROTOCOLS, VAULT_STRATEGIES, calculateWeightedAPY, calculateRiskScore, formatAllocation } from "@/lib/protocols";
-import { getVaultInfo, CONTRACT_ADDRESS, VaultInfo } from "@/lib/movement";
+import { PROTOCOLS, VAULT_STRATEGIES, calculateWeightedAPY, calculateRiskScore, formatAllocation, Strategy, updateStrategiesWithOnChainData } from "@/lib/protocols";
+import { getVaultInfo, getRouterInfo, getProtocolInfo, CONTRACT_ADDRESS, VaultInfo, ProtocolInfo } from "@/lib/movement";
 
 export default function Home() {
   const [vaultInfo, setVaultInfo] = useState<VaultInfo | null>(null);
+  const [strategies, setStrategies] = useState<Strategy[]>(VAULT_STRATEGIES);
+  const [onChainProtocols, setOnChainProtocols] = useState<ProtocolInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchVaultData() {
+    async function fetchData() {
+      // Fetch vault info
       const info = await getVaultInfo(CONTRACT_ADDRESS);
       setVaultInfo(info);
+      
+      // Fetch router info and protocols
+      const routerInfo = await getRouterInfo(CONTRACT_ADDRESS);
+      if (routerInfo && routerInfo.protocolCount > 0) {
+        const protocols: ProtocolInfo[] = [];
+        for (let i = 0; i < routerInfo.protocolCount; i++) {
+          const protocol = await getProtocolInfo(CONTRACT_ADDRESS, i);
+          if (protocol) protocols.push(protocol);
+        }
+        setOnChainProtocols(protocols);
+        
+        // Update strategies with on-chain APY data
+        const updatedStrategies = updateStrategiesWithOnChainData(VAULT_STRATEGIES, protocols);
+        setStrategies(updatedStrategies);
+      }
+      
       setLoading(false);
     }
-    fetchVaultData();
+    fetchData();
   }, []);
 
-  const targetAPY = calculateWeightedAPY();
-  const riskScore = calculateRiskScore();
+  const targetAPY = calculateWeightedAPY(strategies);
+  const riskScore = calculateRiskScore(strategies);
 
   return (
     <div className="h-full flex flex-col overflow-auto">
@@ -100,10 +119,17 @@ export default function Home() {
         >
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-sm">Active Strategies</h2>
-            <span className="text-xs text-gray-500">{VAULT_STRATEGIES.length} protocols integrated</span>
+            <div className="flex items-center gap-2">
+              {onChainProtocols.length > 0 && (
+                <span className="text-xs text-green-500 flex items-center gap-1">
+                  <Activity className="w-3 h-3" /> On-chain
+                </span>
+              )}
+              <span className="text-xs text-gray-500">{strategies.length} protocols</span>
+            </div>
           </div>
           <div className="grid md:grid-cols-3 gap-3">
-            {VAULT_STRATEGIES.map((strategy, i) => {
+            {strategies.map((strategy, i) => {
               const protocol = PROTOCOLS[strategy.protocolId];
               return (
                 <motion.div

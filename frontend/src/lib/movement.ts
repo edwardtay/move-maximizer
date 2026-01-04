@@ -16,6 +16,24 @@ export const MODULES = {
   rewards: `${CONTRACT_ADDRESS}::rewards`,
 };
 
+// Protocol info from on-chain router
+export interface ProtocolInfo {
+  name: string;
+  protocolType: number;
+  isActive: boolean;
+  currentAPY: number;
+  totalDeposited: number;
+  riskScore: number;
+}
+
+// Router info from chain
+export interface RouterInfo {
+  protocolCount: number;
+  totalRouted: number;
+  autoRebalance: boolean;
+  lastRebalance: number;
+}
+
 // Types
 export interface VaultInfo {
   totalAssets: number;
@@ -191,4 +209,103 @@ export function calculateRealAPY(vaultInfo: VaultInfo): number {
   // APY = (yield / assets) * 365 * 100
   const yieldRatio = vaultInfo.totalYieldEarned / vaultInfo.totalAssets;
   return yieldRatio * 365 * 100;
+}
+
+// Get router info from chain
+export async function getRouterInfo(routerAddress: string): Promise<RouterInfo | null> {
+  try {
+    const result = await aptosClient.view({
+      payload: {
+        function: `${MODULES.router}::get_router_info`,
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [routerAddress],
+      },
+    });
+    return {
+      protocolCount: Number(result[0]),
+      totalRouted: Number(result[1]) / 1e8,
+      autoRebalance: Boolean(result[2]),
+      lastRebalance: Number(result[3]),
+    };
+  } catch (e) {
+    console.error("Error getting router info:", e);
+    return null;
+  }
+}
+
+// Get protocol info from chain
+export async function getProtocolInfo(routerAddress: string, index: number): Promise<ProtocolInfo | null> {
+  try {
+    const result = await aptosClient.view({
+      payload: {
+        function: `${MODULES.router}::get_protocol_info`,
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [routerAddress, index.toString()],
+      },
+    });
+    return {
+      name: String(result[0]),
+      protocolType: Number(result[1]),
+      isActive: Boolean(result[2]),
+      currentAPY: Number(result[3]) / 100, // Convert from bps
+      totalDeposited: Number(result[4]) / 1e8,
+      riskScore: Number(result[5]),
+    };
+  } catch (e) {
+    console.error("Error getting protocol info:", e);
+    return null;
+  }
+}
+
+// Get all protocols from router
+export async function getAllProtocols(routerAddress: string): Promise<ProtocolInfo[]> {
+  const routerInfo = await getRouterInfo(routerAddress);
+  if (!routerInfo) return [];
+  
+  const protocols: ProtocolInfo[] = [];
+  for (let i = 0; i < routerInfo.protocolCount; i++) {
+    const protocol = await getProtocolInfo(routerAddress, i);
+    if (protocol) protocols.push(protocol);
+  }
+  return protocols;
+}
+
+// Get rewards distributor info
+export async function getRewardsInfo(distributorAddress: string): Promise<{ totalDistributed: number } | null> {
+  try {
+    const result = await aptosClient.view({
+      payload: {
+        function: `${MODULES.rewards}::get_total_distributed`,
+        typeArguments: [],
+        functionArguments: [distributorAddress],
+      },
+    });
+    return {
+      totalDistributed: Number(result[0]) / 1e8,
+    };
+  } catch (e) {
+    console.error("Error getting rewards info:", e);
+    return null;
+  }
+}
+
+// Get pending rewards for user
+export async function getPendingRewards(
+  distributorAddress: string,
+  poolAddress: string,
+  userAddress: string
+): Promise<number> {
+  try {
+    const result = await aptosClient.view({
+      payload: {
+        function: `${MODULES.rewards}::get_pending_rewards`,
+        typeArguments: [],
+        functionArguments: [distributorAddress, poolAddress, userAddress],
+      },
+    });
+    return Number(result[0]) / 1e8;
+  } catch (e) {
+    console.error("Error getting pending rewards:", e);
+    return 0;
+  }
 }

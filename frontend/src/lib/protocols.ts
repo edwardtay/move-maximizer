@@ -1,5 +1,5 @@
 // Movement DeFi Protocol Registry
-// These are real protocols deployed on Movement Network
+// Real protocols on Movement Network with on-chain data integration
 
 export interface Protocol {
   id: string;
@@ -9,7 +9,7 @@ export interface Protocol {
   contractAddress?: string;
   description: string;
   baseAPY: number;
-  riskScore: number; // 1-10, lower is safer
+  riskScore: number;
   tvl?: number;
 }
 
@@ -17,11 +17,12 @@ export interface Strategy {
   id: string;
   protocolId: string;
   name: string;
-  allocationBps: number; // basis points (10000 = 100%)
+  allocationBps: number;
   targetAPY: number;
   riskLevel: "low" | "medium" | "high";
   description: string;
   active: boolean;
+  onChainIndex?: number; // Index in strategy_router
 }
 
 // Real Movement DeFi Protocols
@@ -82,41 +83,44 @@ export const PROTOCOLS: Record<string, Protocol> = {
   },
 };
 
-// Active vault strategies
+// Active vault strategies - mapped to on-chain strategy_router
 export const VAULT_STRATEGIES: Strategy[] = [
   {
     id: "meridian-staking",
     protocolId: "meridian",
     name: "Meridian Staking",
-    allocationBps: 4000, // 40%
+    allocationBps: 4000,
     targetAPY: 12.0,
     riskLevel: "low",
     description: "Stake MOVE via Meridian for network validation rewards",
     active: true,
+    onChainIndex: 0,
   },
   {
     id: "echelon-supply",
     protocolId: "echelon",
     name: "Echelon Supply",
-    allocationBps: 3500, // 35%
+    allocationBps: 3500,
     targetAPY: 8.5,
     riskLevel: "low",
     description: "Supply MOVE to Echelon isolated lending pools",
     active: true,
+    onChainIndex: 1,
   },
   {
     id: "liquidswap-lp",
     protocolId: "liquidswap",
     name: "Liquidswap LP",
-    allocationBps: 2500, // 25%
+    allocationBps: 2500,
     targetAPY: 15.0,
     riskLevel: "medium",
     description: "Provide MOVE/USDC liquidity on Liquidswap",
     active: true,
+    onChainIndex: 2,
   },
 ];
 
-// Calculate weighted average APY
+// Calculate weighted average APY from strategies
 export function calculateWeightedAPY(strategies: Strategy[] = VAULT_STRATEGIES): number {
   return strategies
     .filter(s => s.active)
@@ -132,6 +136,26 @@ export function calculateRiskScore(strategies: Strategy[] = VAULT_STRATEGIES): n
   }, 0);
 }
 
+// Update strategies with on-chain APY data
+export function updateStrategiesWithOnChainData(
+  strategies: Strategy[],
+  onChainProtocols: { name: string; currentAPY: number; isActive: boolean }[]
+): Strategy[] {
+  return strategies.map(strategy => {
+    const onChainData = onChainProtocols.find(
+      p => p.name.toLowerCase().includes(strategy.protocolId.toLowerCase())
+    );
+    if (onChainData) {
+      return {
+        ...strategy,
+        targetAPY: onChainData.currentAPY,
+        active: onChainData.isActive,
+      };
+    }
+    return strategy;
+  });
+}
+
 // Get protocol by ID
 export function getProtocol(id: string): Protocol | undefined {
   return PROTOCOLS[id];
@@ -145,4 +169,14 @@ export function getStrategy(id: string): Strategy | undefined {
 // Format allocation percentage
 export function formatAllocation(bps: number): string {
   return `${(bps / 100).toFixed(0)}%`;
+}
+
+// Protocol type to string
+export function protocolTypeToString(type: number): string {
+  switch (type) {
+    case 1: return "Staking";
+    case 2: return "Lending";
+    case 3: return "DEX/LP";
+    default: return "Unknown";
+  }
 }
